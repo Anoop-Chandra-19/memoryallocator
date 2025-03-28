@@ -11,8 +11,6 @@ void *malloc(size_t size)
     if (block == (void *)-1)
     {
         return NULL; // Allocation failed//-
-        return NULL;//+
     }
     return block; // Return the pointer to the allocated memory//-
-    return block;//+
 }
