@@ -1,28 +1,40 @@
 // This is a simple implementation of malloc.
 // It uses a linked list to keep track of allocated and free memory blocks.
-// It is not thread-safe and does not handle fragmentation.
-// It is meant for educational purposes only and should not be used in production.
+// It is not thread-safe and should not be used in production code.
+// It is only for educational purposes.
 #include <unistd.h> // For sbrk
 #include <stdio.h> 
 #include <string.h>
 #include <pthread.h>
 
-typedef char ALIGN[16]; // Declare a 16-byte block for memory allocation
+typedef char ALIGN[16]; // Declare a 16-byte block for header metadata
 
-union header{
+union header{    // This is the header for each block of memory
     struct{
-        size_t size;
-        unsigned is_free;
-        union header *next;
+        size_t size; // Size of the block
+        unsigned is_free; // Is the block free?
+        union header *next; // Pointer to the next block
     } s;
-    ALIGN stub;
+    ALIGN stub; 
 };
-typedef union header header_t;
+typedef union header header_t; // Define header_t as a union of header 
 
-pthread_mutex_t global_malloc_lock = PTHREAD_MUTEX_INITIALIZER;
-header_t *head = NULL, *tail = NULL;
+// global variables
+pthread_mutex_t global_malloc_lock = PTHREAD_MUTEX_INITIALIZER; // Mutex for thread safety
+header_t *head = NULL, *tail = NULL; // Pointers to the head and tail of the linked list
 
-header_t *get_free_block(size_t size)
+header_t *get_free_block(size_t size) 
+/*
+
+This function returns a free block of memory
+
+Parameters:
+size: size of the memory block to be allocated
+
+Returns:
+A pointer to the free block of memory, or NULL if no free block is found
+
+*/
 {
     header_t *curr = head;
     while(curr){
@@ -34,7 +46,18 @@ header_t *get_free_block(size_t size)
     return NULL;
 }
 
-void *malloc(size_t size)
+void *malloc(size_t size) 
+/*
+
+This function allocates memory of the given size
+
+Parameters:
+size: size of memory to be allocated
+
+Returns:
+A pointer to the allocated memory block, or NULL if the allocation fails
+
+*/ 
 {
     size_t total_size;
     void *block;
@@ -69,7 +92,18 @@ void *malloc(size_t size)
     return (void*)(header + 1);
 }
 
-void free(void *block)
+void free(void *block) 
+/*
+
+This function frees the memory block
+
+Parameters:
+block: pointer to the memory block to be freed
+
+Returns:
+None
+
+*/ 
 {
     header_t *header, *tmp;
     void *programbreak;
@@ -102,7 +136,19 @@ void free(void *block)
     pthread_mutex_unlock(&global_malloc_lock);
 }
 
-void *calloc(size_t num, size_t nsize)
+void *calloc(size_t num, size_t nsize) 
+/*
+
+This function allocates memory for an array of num elements of nsize bytes each
+
+Parameters:
+num: number of elements
+nsize: size of each element
+
+Returns:
+A pointer to the allocated memory block, or NULL if the allocation fails
+
+*/
 {
     size_t size;
     void *block;
@@ -119,4 +165,35 @@ void *calloc(size_t num, size_t nsize)
     }
     memset(block, 0, size);
     return block;
+}
+
+void *realloc(void *block, size_t size) 
+/*
+
+This function reallocates memory for the given block to the new size
+
+Parameters:
+block: pointer to the memory block to be reallocated
+size: new size of the memory block
+
+Returns:
+A pointer to the reallocated memory block, or NULL if the allocation fails
+
+*/ 
+{
+    header_t *header;
+    void *ret;
+    if (!block || !size){
+        return malloc(size);
+    }
+    header = (header_t*)block - 1;
+    if(header->s.size >= size){
+        return block;
+    }
+    ret = malloc(size);
+    if (ret){
+        memcpy(ret, block, header->s.size);
+        free(block);
+    }
+    return ret;
 }
